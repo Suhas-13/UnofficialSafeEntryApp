@@ -91,8 +91,8 @@ public class LocationAdapter extends
             }
         });
 
-        check_button.setEnabled(true);
-        status_button.setEnabled(true);
+        check_button.setEnabled(false);
+        status_button.setEnabled(false);
     }
 
     // Returns the total count of items in the list

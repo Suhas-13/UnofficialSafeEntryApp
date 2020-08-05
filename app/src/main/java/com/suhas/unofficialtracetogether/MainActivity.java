@@ -2,21 +2,34 @@ package com.suhas.unofficialtracetogether;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import java.time.Instant;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.InputType;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.Toast;
 
 import com.android.volley.Cache;
@@ -44,14 +57,33 @@ public class MainActivity extends AppCompatActivity {
     private static final int STORAGE_PERMISSION_CODE = 101;
     public static RequestQueue requestQueue;
     private static Context context;
+    private String m_text = "";
     private static LocationAdapter adapter;
     private static List<SafeEntryLocation> locations;
     private static Gson gson;
     private static SharedPreferences sharedPreferences;
     private static SharedPreferences.Editor editor;
+    private static String nric;
+    private static String phone;
 
+    public static String getNric() {
+        return nric;
+    }
+    public static void showToast(String message) {
+        Toast.makeText(context,message,Toast.LENGTH_LONG);
+    }
 
+    public static void setNric(String nric) {
+        MainActivity.nric = nric;
+    }
 
+    public static String getPhone() {
+        return phone;
+    }
+
+    public static void setPhone(String phone) {
+        MainActivity.phone = phone;
+    }
 
     int PERMISSION_ALL = 1;
     String[] PERMISSIONS = {
@@ -131,8 +163,7 @@ public class MainActivity extends AppCompatActivity {
                 if (tenantId.length() != 0 && tenantId != null) {
                     SafeEntryLocation location = new SafeEntryLocation(tenantId);
                     try {
-                        location.addLocationName();
-                        location.check(true);
+                        location.setup();
 
 
                     } catch (IOException e) {
@@ -208,7 +239,69 @@ public class MainActivity extends AppCompatActivity {
     public static SharedPreferences.Editor getEditor() {
         return editor;
     }
+    @SuppressLint("ResourceType")
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.layout.toolbar, menu);
+        return true;
+    }
+    public void settingsPopup(final boolean popup_type) {
 
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        if (popup_type) {
+            builder.setTitle("Enter NRIC");
+        }
+        else {
+            builder.setTitle("Enter Phone Number");
+        }
+
+        final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT);
+        builder.setView(input);
+        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                m_text = input.getText().toString();
+                if (m_text != "") {
+                    SharedPreferences loginPreferences=getApplicationContext().getSharedPreferences("login_info", MODE_PRIVATE);
+                    SharedPreferences.Editor loginEdit=loginPreferences.edit();
+                    if (popup_type) {
+                        nric=m_text;
+                        loginEdit.putString("nric",nric);
+                        loginEdit.apply();
+                    }
+                    else {
+                        phone=m_text;
+                        loginEdit.putString("phone",phone);
+                        loginEdit.apply();
+                    }
+
+                }
+            }
+        });
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        });
+        builder.show();
+
+    }
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.nric:
+                settingsPopup(true);
+                return true;
+            case R.id.phone:
+                settingsPopup(false);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -244,5 +337,15 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+       SharedPreferences loginPreferences=getApplicationContext().getSharedPreferences("login_info", MODE_PRIVATE);
+       setNric(loginPreferences.getString("nric",""));
+       setPhone(loginPreferences.getString("phone",""));
+       Log.d("TEST","CURRENT IS " + loginPreferences.getString("nric",""));
+       if (loginPreferences.getString("nric","")=="") {
+           settingsPopup(true);
+       }
+       if (loginPreferences.getString("phone","")==""){
+           settingsPopup(false);
+       }
     }
 }

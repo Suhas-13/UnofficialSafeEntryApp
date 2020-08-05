@@ -20,7 +20,9 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.StringRequest;
+import com.google.gson.JsonObject;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -37,6 +39,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -48,11 +51,21 @@ public class SafeEntryLocation implements Comparable<SafeEntryLocation>{
     private boolean checkedIn;
     private String locationName = null;
     private String tenantId;
+    private String locationId;
     private static String baseBackendUrl = "https://backend.safeentry-qr.gov.sg";
     private static String baseUrl = "https://www.safeentry-qr.gov.sg";
     private String transactionId;
     private String statusUrl;
     private long currentTime;
+    private static boolean buttonsEnabled;
+
+    public static boolean isButtonsEnabled() {
+        return buttonsEnabled;
+    }
+
+    public static void setButtonsEnabled(boolean buttonsEnabled) {
+        SafeEntryLocation.buttonsEnabled = buttonsEnabled;
+    }
 
     public JSONObject toJson() throws JSONException {
         JSONObject json = new JSONObject();
@@ -118,10 +131,12 @@ public class SafeEntryLocation implements Comparable<SafeEntryLocation>{
         saveObject();
     }
 
+
     public SafeEntryLocation(String tenantId) {
         setCurrentTime();
-        this.tenantId=tenantId;
+        this.tenantId=tenantId.toUpperCase();
         this.checkedIn=false;
+        this.buttonsEnabled=true;
     }
 
     public String getLocationName() {
@@ -152,15 +167,27 @@ public class SafeEntryLocation implements Comparable<SafeEntryLocation>{
     }
 
     public void addLocationName() {
+        if (MainActivity.getNric() == "" || MainActivity.getPhone() == "") {
+            return;
+        }
         StringRequest nameRequest = new StringRequest(
                 Request.Method.GET, baseBackendUrl + "/api/v2/building?client_id=" + tenantId,
                 new Response.Listener<String>() {
-                @Override
+                    @Override
                 public void onResponse(String response) {
                     JSONObject json = null;
                     try {
                         json = new JSONObject(response);
-                        setLocationName((String) json.get("venueName"));
+                        JSONArray tenantList = json.getJSONObject("temperaturepass").getJSONArray("tenants");
+                        if (tenantList.length() == 1) {
+                            JSONObject jsonObject = (JSONObject) tenantList.get(0);
+                            setLocationName((String) jsonObject.getString("name"));
+                            SafeEntryLocation.this.locationId=jsonObject.getString("id");
+                        }
+                        else {
+
+                        }
+
                         MainActivity.addItem(SafeEntryLocation.this, 0);
                     } catch (JSONException e) {
                         e.printStackTrace();
@@ -183,17 +210,25 @@ public class SafeEntryLocation implements Comparable<SafeEntryLocation>{
             }
         };
         MainActivity.requestQueue.add(nameRequest);
+
+    }
+    public void setup() throws IOException, JSONException {
+        addLocationName();
+
     }
     @Override
     public int compareTo(SafeEntryLocation o) {
         return (new Long(getCurrentTime()).compareTo(new Long(o.getCurrentTime()))/-1);
     }
     public void check(boolean checkIn) throws IOException, JSONException {
+        String phoneNumber=MainActivity.getPhone();
+        String NRIC=MainActivity.getNric();
+        if (phoneNumber == "" || NRIC == "") {
+            return;
+        }
         setCurrentTime();
         int currentIndex=MainActivity.getLocations().indexOf(SafeEntryLocation.this);
         MainActivity.moveItem(currentIndex, 0);
-        String phoneNumber = "93872246";
-        String NRIC = "T0421907J";
         final String actionType;
         phoneNumber = android.util.Base64.encodeToString(phoneNumber.getBytes("UTF-8"), Base64.NO_WRAP);
         if (checkIn) {
@@ -242,7 +277,7 @@ public class SafeEntryLocation implements Comparable<SafeEntryLocation>{
                 try {
                     return data == null ? null : data.getBytes("utf-8");
                 } catch (UnsupportedEncodingException uee) {
-                   Log.d("TEST","ERROR REQUEST");
+                    Log.d("TEST","ERROR REQUEST");
                     return null;
                 }
             }

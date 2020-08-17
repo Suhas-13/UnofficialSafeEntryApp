@@ -1,4 +1,4 @@
-package com.suhas.unofficialtracetogether;
+package com.suhas.unofficialsafeentry;
 
 import android.content.Context;
 

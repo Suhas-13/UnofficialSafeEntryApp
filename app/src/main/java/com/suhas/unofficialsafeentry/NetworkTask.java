@@ -1,4 +1,4 @@
-package com.suhas.unofficialtracetogether;
+package com.suhas.unofficialsafeentry;
 
 import android.os.AsyncTask;
 import android.util.Log;
@@ -13,7 +13,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Map;
 
 public class NetworkTask extends AsyncTask<String, Void, Void> {
     // This is the JSON body of the post

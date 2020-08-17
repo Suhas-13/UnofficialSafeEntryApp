@@ -1,14 +1,21 @@
 package com.suhas.unofficialtracetogether;
 import java.time.Instant;
 
+import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.util.Base64;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.webkit.WebView;
+import android.widget.PopupMenu;
+import android.widget.PopupWindow;
 import android.widget.Toast;
 
 import androidx.annotation.RequiresApi;
@@ -42,6 +49,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
@@ -56,8 +64,10 @@ public class SafeEntryLocation implements Comparable<SafeEntryLocation>{
     private static String baseUrl = "https://www.safeentry-qr.gov.sg";
     private String transactionId;
     private String statusUrl;
+    private String[] titleList;
+    private String[] idList;
     private long currentTime;
-    private static boolean buttonsEnabled;
+    private static boolean buttonsEnabled = false;
 
     public static boolean isButtonsEnabled() {
         return buttonsEnabled;
@@ -166,29 +176,67 @@ public class SafeEntryLocation implements Comparable<SafeEntryLocation>{
         saveObject();
     }
 
-    public void addLocationName() {
+    public void setup() {
+
         if (MainActivity.getNric() == "" || MainActivity.getPhone() == "") {
             return;
         }
         StringRequest nameRequest = new StringRequest(
+
                 Request.Method.GET, baseBackendUrl + "/api/v2/building?client_id=" + tenantId,
                 new Response.Listener<String>() {
+                    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
                     @Override
                 public void onResponse(String response) {
                     JSONObject json = null;
                     try {
                         json = new JSONObject(response);
                         JSONArray tenantList = json.getJSONObject("temperaturepass").getJSONArray("tenants");
+                        Log.d("TEST", String.valueOf(tenantList.length()));
                         if (tenantList.length() == 1) {
+                            Log.d("TEST","ONLY 1");
                             JSONObject jsonObject = (JSONObject) tenantList.get(0);
-                            setLocationName((String) jsonObject.getString("name"));
+                            SafeEntryLocation.this.locationName=(String) json.getString("venueName");
+                            Log.d("TEST", SafeEntryLocation.this.locationName);
                             SafeEntryLocation.this.locationId=jsonObject.getString("id");
+                            MainActivity.addItem(SafeEntryLocation.this, 0);
+                            try {
+                                check(true);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
                         }
                         else {
-
+                            titleList= new String[tenantList.length()];
+                            idList= new String[tenantList.length()];
+                            for (int i=0; i<tenantList.length(); i++) {
+                                JSONObject currentItem = (JSONObject) tenantList.get(i);
+                                titleList[i]= currentItem.getString("name");
+                                idList[i]=currentItem.getString("id");
+                            }
+                            AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.getContext());
+                            builder.setTitle("Select location");
+                            builder.setItems(titleList, new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    locationId=idList[which];
+                                    locationName=titleList[which];
+                                    saveObject();
+                                    MainActivity.addItem(SafeEntryLocation.this, 0);
+                                    try {
+                                        check(true);
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            });
+                            AlertDialog dialog = builder.create();
+                            dialog.show();
                         }
-
-                        MainActivity.addItem(SafeEntryLocation.this, 0);
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
@@ -212,17 +260,16 @@ public class SafeEntryLocation implements Comparable<SafeEntryLocation>{
         MainActivity.requestQueue.add(nameRequest);
 
     }
-    public void setup() throws IOException, JSONException {
-        addLocationName();
 
-    }
     @Override
     public int compareTo(SafeEntryLocation o) {
         return (new Long(getCurrentTime()).compareTo(new Long(o.getCurrentTime()))/-1);
     }
     public void check(boolean checkIn) throws IOException, JSONException {
+        setButtonsEnabled(false);
         String phoneNumber=MainActivity.getPhone();
         String NRIC=MainActivity.getNric();
+        MainActivity.getLocations().indexOf(SafeEntryLocation.this);
         if (phoneNumber == "" || NRIC == "") {
             return;
         }
@@ -238,7 +285,7 @@ public class SafeEntryLocation implements Comparable<SafeEntryLocation>{
             actionType = "checkout";
         }
         setCheckedIn(!checkedIn);
-        final String data = "mobileno=" + phoneNumber + "=&client_id=" + this.tenantId + "&subentity=1&hostname=null&systemType=safeentry&mobilenoEncoded=true&sub=" + NRIC + "&actionType=" + actionType + "&subType=uinfin&rememberMe=false";
+        final String data = "mobileno=" + phoneNumber + "=&client_id=" + this.tenantId + "&subentity=" + locationId + "&hostname=null&systemType=safeentry&mobilenoEncoded=true&sub=" + NRIC + "&actionType=" + actionType + "&subType=uinfin&rememberMe=false";
         StringRequest transactionRequest = new StringRequest(
                 Request.Method.POST, baseBackendUrl + "/api/v2/person",
                 new Response.Listener<String>() {
@@ -250,6 +297,7 @@ public class SafeEntryLocation implements Comparable<SafeEntryLocation>{
                             transactionId = (String) json.getJSONObject("message").get("transactionId");
                             statusUrl = (baseUrl + "/complete/" + tenantId + "/" + transactionId);
                             showStatus();
+                            setButtonsEnabled(true);
                             saveObject();
                         } catch (JSONException e) {
                             e.printStackTrace();

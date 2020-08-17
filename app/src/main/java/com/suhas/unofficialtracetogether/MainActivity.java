@@ -155,6 +155,7 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, intent);
 
         String MATCH_PHRASE = "safeentry-qr.gov.sg/tenant";
+        String MATCH_PHRASE2 = "temperaturepass.ndi-api.gov.sg";
         String tenantId;
         if (resultCode == RESULT_OK) {
             String contents = intent.getStringExtra("SCAN_RESULT");
@@ -162,21 +163,18 @@ public class MainActivity extends AppCompatActivity {
                 tenantId = contents.split("/tenant/")[1];
                 if (tenantId.length() != 0 && tenantId != null) {
                     SafeEntryLocation location = new SafeEntryLocation(tenantId);
-                    try {
-                        location.setup();
-
-
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
-
+                    location.setup();
                 }
-            } else if (resultCode == RESULT_CANCELED) {
-
+            }
+            else if (contents.indexOf(MATCH_PHRASE2) != -1) {
+                tenantId = contents.split("/login/")[1];
+                if (tenantId.length() != 0 && tenantId != null) {
+                    SafeEntryLocation location = new SafeEntryLocation(tenantId);
+                    location.setup();
+                }
             }
         }
+
     }
 
     public static boolean hasPermissions(Context context, String... permissions) {
@@ -340,7 +338,6 @@ public class MainActivity extends AppCompatActivity {
        SharedPreferences loginPreferences=getApplicationContext().getSharedPreferences("login_info", MODE_PRIVATE);
        setNric(loginPreferences.getString("nric",""));
        setPhone(loginPreferences.getString("phone",""));
-       Log.d("TEST","CURRENT IS " + loginPreferences.getString("nric",""));
        if (loginPreferences.getString("nric","")=="") {
            settingsPopup(true);
        }

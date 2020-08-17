@@ -40,6 +40,7 @@ public class LocationAdapter extends
             check_button = (Button) itemView.findViewById(R.id.check_button);
             open_status = (Button) itemView.findViewById(R.id.open_status);
         }
+
     }
 
     public LocationAdapter(List<SafeEntryLocation> locations) {
@@ -91,13 +92,15 @@ public class LocationAdapter extends
             }
         });
 
-        check_button.setEnabled(false);
-        status_button.setEnabled(false);
+        check_button.setEnabled(!location.isButtonsEnabled());
+        status_button.setEnabled(!location.isButtonsEnabled());
     }
+
 
     // Returns the total count of items in the list
     @Override
     public int getItemCount() {
         return mLocations.size();
     }
+
 }
